@@ -1,0 +1,117 @@
+version: '3'
+services: 
+   docker-mysql:
+      image: mysql:5.7
+      restart: always
+      ports:
+         - "3308:3306"
+      expose:
+         - "3306"
+      environment:
+         - MYSQL_ROOT_PASSWORD=root
+         - MYSQL_DATABASE=tmsdb
+         - MYSQL_PASSWORD=root
+   travelmanagement_ui:
+      image: 'pghosh93/java-fse2-travelmanagement:travelmanagement_ui'
+      restart: always
+      ports:
+         - "4200:80"
+   eurekaserver:
+      image: 'pghosh93/java-fse2-travelmanagement:eureka'
+      depends_on:
+         - docker-mysql
+      ports:
+         - "8761:8761"
+   configserver:
+      image: 'pghosh93/java-fse2-travelmanagement:config'
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+      ports:
+         - "8888:8888"
+      environment:
+         - GITREPO=https://github.com/pghosh93/TravelMgmt_CofigServer_Properties.git
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+   zuulserver:
+      image: 'pghosh93/java-fse2-travelmanagement:zuul'
+      restart: always
+      ports:
+         - "8086:8086"
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+         - configserver
+      environment:
+         - ZUUL_PORT=8086
+         - CONFIG_SERVER=http://configserver:8888
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+   authserver:
+      image: 'pghosh93/java-fse2-travelmanagement:auth'
+      restart: always
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+         - configserver
+         - zuulserver
+      ports:
+         - "1111:1111"
+      environment:
+         - CONFIG_SERVER=http://configserver:8888
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
+         - DBUSER=root
+         - DBPASSWORD=root
+   driverserver:
+      image: 'pghosh93/java-fse2-travelmanagement:driver'
+      restart: always
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+         - configserver
+         - zuulserver
+         - authserver
+      ports:
+         - "3333:3333"
+      environment:
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
+         - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
+         - DBUSER=root
+         - DBPASSWORD=root
+   riderserver:
+      image: 'pghosh93/java-fse2-travelmanagement:rider'
+      restart: always
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+         - configserver
+         - zuulserver
+         - authserver
+         - driverserver
+      ports:
+         - "4444:4444"
+      environment:
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
+         - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
+         - DBUSER=root
+         - DBPASSWORD=root
+   adminserver:
+      image: 'pghosh93/java-fse2-travelmanagement:admin'
+      restart: always
+      depends_on:
+         - docker-mysql
+         - eurekaserver
+         - configserver
+         - zuulserver
+         - authserver
+         - driverserver
+         - riderserver
+      ports:
+         - "2222:2222"
+      environment:
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
+         - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
+         - DBUSER=root
+         - DBPASSWORD=root
